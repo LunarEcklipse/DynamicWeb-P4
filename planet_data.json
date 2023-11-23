@@ -1,0 +1,9 @@
+[
+    {
+        "name": "Mercury",
+        "radius_km": 2439.7,
+        "distance_from_sun": 63.86,
+        "rotation_period_days": 58.646,
+        "orbital_period_days": 87.97
+    }
+]
