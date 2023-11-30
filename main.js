@@ -7,7 +7,7 @@ class PlanetAPI
     static fetch_planets_from_api()
     {
         (async function () {
-            const response = await fetch("planet_data.json");
+            const response = await fetch("https://raw.githubusercontent.com/LunarEcklipse/DynamicWeb-P4/main/data/planets.json");
             const data = await response.json();
             console.log(data);
         })();
