@@ -4,13 +4,18 @@
 
 class PlanetAPI
 {
-    static fetch_planets_from_api()
+    static get_planets() // Returns a map containing planets
     {
+        const out_planets = new Map();
         (async function () {
             const response = await fetch("https://raw.githubusercontent.com/LunarEcklipse/DynamicWeb-P4/main/data/planets.json");
             const data = await response.json();
-            console.log(data);
+            for (let i = 0; i < data.length; i++)
+            {
+                out_planets.set(data[i].name, new Planet(data[i].name, data[i].radius, data[i].distance_from_sun, data[i].rotation_period, data[i].orbital_period, data[i].color));
+            }
         })();
+        return out_planets;
     }
 }
 
@@ -44,7 +49,7 @@ class Planet
         }
         else
         {
-            console.log("Invalid color hex string. Using default color (white)");
+            console.log(```Invalid color hex string (${color.toString()}). Using default color (white).```);
             this.color = "#FFFFFF";
         }
     }
@@ -75,15 +80,20 @@ class Window
     }
 }
 
+// GLOBAL VARIABLES //
+
+const planets = PlanetAPI.get_planets();
+var center_of_window = undefined; // This keeps track of where the window center is. It is updated every frame.
+
 // DRAWING FUNCTIONS //
 
-
-function setup()
+function setup() // Called once
 {
-
+    createCanvas(windowWidth, windowHeight);
+    center_of_window = Window.calculate_center_of_window();
 }
 
-function draw()
+function draw() // Called every frame
 {
 
 }
