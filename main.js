@@ -2,6 +2,18 @@
 
 // CLASSES //
 
+class PlanetAPI
+{
+    static fetch_planets_from_api()
+    {
+        (async function () {
+            const response = await fetch("planet_data.json");
+            const data = await response.json();
+            console.log(data);
+        })();
+    }
+}
+
 class Coordinate
 {
     constructor(x, y)
@@ -11,14 +23,30 @@ class Coordinate
     }
 }
 
-class Star
+class Planet
 {
-    constructor(x, y, size, color)
+    static validate_color_hex(hex_string) // Returns true or false
     {
-        this.x = x;
-        this.y = y;
-        this.size = size;
-        this.color = color;
+        const hex_regex = new RegExp("^#?(?:[0-9a-fA-F]{3}){1,2}$");
+        return hex_regex.test(hex_string);
+    }
+
+    constructor(name, radius, distance_from_sun, rotation_period, orbital_period, color)
+    {
+        this.name = name;
+        this.radius = radius;
+        this.distance_from_sun = distance_from_sun * 1000000;
+        this.rotation_period = rotation_period;
+        this.orbital_period = orbital_period;
+        if (Planet.validate_color_hex(color))
+        {
+            this.color = color;
+        }
+        else
+        {
+            console.log("Invalid color hex string. Using default color (white)");
+            this.color = "#FFFFFF";
+        }
     }
 }
 
