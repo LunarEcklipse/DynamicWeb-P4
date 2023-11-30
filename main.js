@@ -1,34 +1,54 @@
 // Using p5.js
 
 // CLASSES //
-class Planet
+
+class Coordinate
 {
-    /*
-        Radius is in km
-        Distance from sun is in km * 1,000,000
-        Rotation period is in days
-        Orbital period is in days
-    */
-    constructor(name, radius, color, distance_from_sun, rotation_period, orbital_period)
+    constructor(x, y)
     {
-        this.name = name;
-        this.radius = radius;
-        this.color = color;
-        this.distance_from_sun = distance_from_sun;
-        this.rotation_period = rotation_period;
-        this.orbital_period = orbital_period;
+        this.x = x;
+        this.y = y;
     }
 }
 
-function resize_window()
+class Star
 {
-    resizeCanvas(windowWidth, windowHeight);
+    constructor(x, y, size, color)
+    {
+        this.x = x;
+        this.y = y;
+        this.size = size;
+        this.color = color;
+    }
 }
 
-function calculate_center_of_window()
-{
+// WINDOW FUNCTIONS //
 
+class Window
+{
+    static resize_window()
+    {
+        resizeCanvas(windowWidth, windowHeight);
+    }
+
+    static calculate_center_of_window()
+    {
+        return new Coordinate(windowWidth / 2, windowHeight / 2);
+    }
+
+    static get_shortest_window_side()
+    {
+        return min(windowWidth, windowHeight);
+    }
+
+    static get_longest_window_side()
+    {
+        return max(windowWidth, windowHeight);
+    }
 }
+
+// DRAWING FUNCTIONS //
+
 
 function setup()
 {

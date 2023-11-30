@@ -4,6 +4,71 @@
         "radius_km": 2439.7,
         "distance_from_sun": 63.86,
         "rotation_period_days": 58.646,
-        "orbital_period_days": 87.97
+        "orbital_period_days": 87.97,
+        "color": "d3d3d3"
+    },
+    {
+        "name": "Venus",
+        "radius_km": 6051.8,
+        "distance_from_sun": 107.48,
+        "rotation_period_days": 243.025,
+        "orbital_period_days": 224.7,
+        "color": "e39e1c"
+    },
+    {
+        "name": "Earth",
+        "radius_km": 6371.0,
+        "distance_from_sun": 147.54,
+        "rotation_period_days": 1.0,
+        "orbital_period_days": 365.26,
+        "color": "009a17"
+    },
+    {
+        "name": "Mars",
+        "radius_km": 3389.5,
+        "distance_from_sun": 228.92,
+        "rotation_period_days": 1.025,
+        "orbital_period_days": 687,
+        "color": "c1440e"
+    },
+    {
+        "name": "Jupiter",
+        "radius_km": 69911,
+        "distance_from_sun": 744.67,
+        "rotation_period_days": 0.4167,
+        "orbital_period_days": 4332.59,
+        "color": "d8ca9d"
+    },
+    {
+        "name": "Saturn",
+        "radius_km": 58232,
+        "distance_from_sun": 1456.6,
+        "rotation_period_days": 0.4458,
+        "orbital_period_days": 10755.70,
+        "color": "bfbdaf"
+    },
+    {
+        "name": "Uranus",
+        "radius_km": 25362,
+        "distance_from_sun": 2933.7,
+        "rotation_period_days": 0.7083,
+        "orbital_period_days": "30687.15",
+        "color": "c6d3e3"
+    },
+    {
+        "name": "Neptune",
+        "radius_km": 24622,
+        "distance_from_sun": 4472.6,
+        "rotation_period_days": 0.6667,
+        "orbital_period_days": 60190.03,
+        "color": "274687"
+    },
+    {
+        "name": "Pluto",
+        "radius_km": 1151,
+        "distance_from_sun": 5906.4,
+        "rotation_period_days": 6.4,
+        "orbital_period_days": 90520,
+        "color": "ddc4af"
     }
 ]
