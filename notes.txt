@@ -1,1 +1,4 @@
-If I tracked every moon I would kill myself
+TODO:
+
+* To scale planet option with zoom in and out
+* To scale distance view 

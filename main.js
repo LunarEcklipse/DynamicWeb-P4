@@ -19,6 +19,11 @@ class PlanetAPI
     }
 }
 
+class DisplayMode
+{
+
+}
+
 class Coordinate
 {
     constructor(x, y)
@@ -38,7 +43,6 @@ class Planet
 
     convert_color_hex_to_rgb() // Returns an object containing rgb values
     {
-        const hex_regex = new RegExp("^#?(?:[0-9a-fA-F]{3}){1,2}$");
         if (Planet.validate_color_hex(this.color))
         {
             const hex_string = this.color.replace("#", "");
