@@ -221,58 +221,6 @@ function determine_if_coordinate_within_circle(coordinate, circle_center_x, circ
     return distance_from_center <= circle_radius;
 }
 
-
-// SCALING FUNCTIONS //
-function get_maximum_distance_from_sun(planet_list) // This calculates the planet with the furthest distance from the sun. The planet should be displayed no further than 90% of the shortest side of the canvas (so 45% of center).
-{
-    let furthest_distance = 0;
-    planet_list.forEach(function(value) {
-        if (value.distance_from_sun > furthest_distance)
-        {
-            furthest_distance = value.distance_from_sun;
-        }
-    });
-
-    return furthest_distance;
-}
-
-function get_effective_radius_of_sun() // The sun should take up 8% of the total screen space (4% on each side of center). This converts that number to pixels and returns it because other planets can scale based on this information. No planet should be smaller than 2% of the screen size.
-{
-    return Math.floor(Window.get_shortest_window_side_length() * 0.04);
-}
-
-function get_km_per_pixel_radius(planets) // Sets a scale to render planets against. We can't render to scale because otherwise planets would literally just not exist at the scale of screens.
-{
-    let smallest_radius = null;
-    let largest_radius = null;
-    planets.forEach(function(value)
-    {
-        if (smallest_radius === null || value.radius < smallest_radius)
-        {
-            smallest_radius = value.radius;
-        }
-
-        if (largest_radius === null || value.radius > largest_radius)
-        {
-            largest_radius = value.radius;
-        }
-    })
-
-    // Smallest planet should be 2% of screen size, while largest planet should be 5% of screen size.
-    let difference_between_radii = largest_radius - smallest_radius;
-    let shortest_window_side = Window.get_shortest_window_side_length();
-    let smallest_radius_size = shortest_window_side * 0.02;
-    let largest_radius_size = shortest_window_side * 0.05;
-    
-}
-
-function get_km_per_pixel_distance(maximum_distance_from_sun) // This function calculates how many kilometers should be used per pixel based on the screen size. Since everything displays in a square, we use the shortest window side. We always round 
-{
-
-    return maximum_distance_from_sun / (Window.get_shortest_window_side_length() * 0.45);
-}
-
-
 // MAIN DRAWING FUNCTIONS //
 
 function draw_startup_mode()
@@ -541,7 +489,56 @@ function draw_distance_mode()
 
 function draw_credits_mode()
 {
+    cursor("default");
+    let window_height = windowHeight;
+    if (windowHeight < 688) // We do this to prevent problems with wrapping on super narrow screens.
+    {
+        window_height = 688;
+    }
+    if (windowWidth < 688) // We do this to prevent problems with wrapping on super narrow screens.
+    {
+        Window.resize_window_to_dimensions(688, window_height);
+    }
+    else
+    {
+        Window.resize_window_to_dimensions(windowWidth, window_height);
+    }
+    
+    background(0);
+    const center_x = Window.calculate_center_of_window_x();
+    fill(255);
+    stroke(255);
+    strokeWeight(1);
+    textSize(64);
+    textAlign(CENTER, CENTER);
+    textWrap(WORD);
+    const text_center = width / 8; // Somehow width / 8 is the center of the screen. I don't know why, but it is. We calculate this here so we don't have to redo this on every line.
+    text("Credits", text_center, 64, width * 0.75);
+    textSize(32);
+    text("Created by: Kaden Duncan-Matis", text_center, 320, width * 0.75);
+    text("Using: p5.js", text_center, 384, width * 0.75);
+    const back_width = textWidth("Go Back") + 32;
+    text("Go Back", text_center, 576 + 64, width * 0.75);
+    fill(0, 0, 0, 0);
+    strokeWeight(5);
+    rect(center_x - (back_width / 2), 576 + 64 - 32, back_width, 64);
+    fill(255);
+    strokeWeight(1);
+    const cursor_position = new Coordinate(mouseX, mouseY);
 
+    if (determine_if_coordinate_within_rectangle(cursor_position, center_x - (back_width / 2), 576 + 64 - 32, back_width, 64))
+    {
+        if (mouseIsPressed && !mouse_is_pressed)
+        {
+            cursor("default");
+            set_view_mode(view_mode, -1);
+        }
+        else
+        {
+            cursor("pointer");
+        }
+        
+    }
 }
 
 // HTML ELEMENT FUNCTIONS //
