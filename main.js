@@ -1,5 +1,3 @@
-var script_is_loaded = false;
-
 // Using p5.js
 
 // CLASSES //
@@ -14,7 +12,7 @@ class PlanetAPI
             const data = await response.json();
             for (let i = 0; i < data.length; i++)
             {
-                out_planets.set(data[i].name, new Planet(data[i].name, data[i].radius, data[i].distance_from_sun, data[i].rotation_period, data[i].orbital_period, data[i].color));
+                out_planets.set(data[i].name, new Planet(data[i].name, data[i].radius_km, data[i].distance_from_sun, data[i].rotation_period_days, data[i].orbital_period_days, data[i].color));
             }
         })();
         return out_planets;
@@ -48,6 +46,11 @@ class ViewMode
     set_distance_mode()
     {
         this.current_mode = 1;
+    }
+
+    set_credits_mode()
+    {
+        this.current_mode = 2;
     }
 }
 
@@ -157,17 +160,17 @@ class Window
 
     static calculate_center_of_window()
     {
-        return new Coordinate(windowWidth / 2, windowHeight / 2);
+        return new Coordinate(width / 2, height / 2);
     }
 
     static calculate_center_of_window_x()
     {
-        return windowWidth / 2;
+        return width / 2;
     }
 
     static calculate_center_of_window_y()
     {
-        return windowHeight / 2;
+        return height / 2;
     }
 
     static get_shortest_window_side_length()
@@ -180,6 +183,42 @@ class Window
         return max(windowWidth, windowHeight);
     }
 }
+
+// GLOBAL VARIABLES //
+
+const planets = PlanetAPI.get_planets(); // This is a map containing all of the planets. The key is the name of the planet, and the value is the planet object.
+var maximum_distance_from_sun = 0; // This keeps track of the furthest distance from the sun. It is updated every frame.
+var km_per_pixel_distance = 0; // This keeps track of how many kilometers should be used per pixel. It is updated every frame. We use this for distance between centers of planets only, otherwise every planet would effectively not exist due to sheer scale.
+var km_per_pixel_radius = 0; // This keeps track of how many kilometers should be used per pixel. It is updated every frame. We use this for radius of planets only, otherwise distances between planets would be nonexistent.
+var view_mode = new ViewMode(); // This keeps track of the current view mode. 0 is size to scale, 1 is distance to scale. -1 is uninitialized/starting up.
+
+var script_is_loaded = false;
+var is_mouse_pressed = undefined;
+
+// CLICK DETECTORS //
+
+function determine_if_click_is_within_canvas(coordinate)
+{
+    return determine_if_coordinate_within_rectangle(coordinate, 0, 0, width, height);
+}
+
+function determine_if_coordinate_within_rectangle(coordinate, rectangle_start_x, rectangle_start_y, rectangle_width, rectangle_height)
+{
+    const rectangle_end_x = rectangle_start_x + rectangle_width;
+    const rectange_end_y = rectangle_start_y + rectangle_height;
+    if (coordinate.x >= rectangle_start_x && coordinate.x <= rectangle_end_x && coordinate.y >= rectangle_start_y && coordinate.y <= rectange_end_y)
+    {
+        return true;
+    }
+    return false;
+}
+
+function determine_if_coordinate_within_circle(coordinate, circle_center_x, circle_center_y, circle_radius)
+{
+    const distance_from_center = Math.sqrt(Math.pow(coordinate.x - circle_center_x, 2) + Math.pow(coordinate.y - circle_center_y, 2));
+    return distance_from_center <= circle_radius;
+}
+
 
 // SCALING FUNCTIONS //
 function get_maximum_distance_from_sun(planet_list) // This calculates the planet with the furthest distance from the sun. The planet should be displayed no further than 90% of the shortest side of the canvas (so 45% of center).
@@ -219,7 +258,7 @@ function get_km_per_pixel_radius(planets) // Sets a scale to render planets agai
 
     // Smallest planet should be 2% of screen size, while largest planet should be 5% of screen size.
     let difference_between_radii = largest_radius - smallest_radius;
-    let shortest_window_side = Window.get_shortest_window_side();
+    let shortest_window_side = Window.get_shortest_window_side_length();
     let smallest_radius_size = shortest_window_side * 0.02;
     let largest_radius_size = shortest_window_side * 0.05;
     
@@ -228,7 +267,7 @@ function get_km_per_pixel_radius(planets) // Sets a scale to render planets agai
 function get_km_per_pixel_distance(maximum_distance_from_sun) // This function calculates how many kilometers should be used per pixel based on the screen size. Since everything displays in a square, we use the shortest window side. We always round 
 {
 
-    return maximum_distance_from_sun / (Window.get_shortest_window_side() * 0.45);
+    return maximum_distance_from_sun / (Window.get_shortest_window_side_length() * 0.45);
 }
 
 // DRAWING HELPER FUNCTIONS //
@@ -240,7 +279,7 @@ function draw_sun()
     
     const effective_sun_radius = get_effective_radius_of_sun();
     let center_of_window = Window.calculate_center_of_window();
-    let shortest_side = Window.get_shortest_window_side();
+    let shortest_side = Window.get_shortest_window_side_length();
     
     // Draw the sun.
     colorMode(RGB, 255);
@@ -253,14 +292,96 @@ function draw_sun()
 
 function draw_startup_mode()
 {
-    Window.resize_window_to_screen();
+    if (windowWidth < 688) // We do this to prevent problems with wrapping on super narrow screens.
+    {
+        Window.resize_window_to_dimensions(688, windowHeight);
+    }
+    else
+    {
+        Window.resize_window_to_dimensions(windowWidth, windowHeight);
+    }
+    
     background(0);
+    const center_x = Window.calculate_center_of_window_x();
+    fill(255);
+    stroke(255);
+    strokeWeight(1);
+    textSize(32);
+    textAlign(CENTER, CENTER);
+    textWrap(WORD);
+    const text_center = width / 8; // Somehow width / 8 is the center of the screen. I don't know why, but it is. We calculate this here so we don't have to redo this on every line.
+    text("Welcome to the Solar System Viewer!", text_center, 64, width * 0.75); 
+    textSize(64);
+    let max_box_width = max(textWidth("Planets to Scale"), textWidth("Distance to Scale"), textWidth("Credits")) + 32;
+    text("Planets to Scale", text_center, 256, width * 0.75);
+    fill(0, 0, 0, 0);
+    strokeWeight(5);
+    rect(center_x - (max_box_width / 2), 256 - 48, max_box_width, 96);
+    fill(255);
+    strokeWeight(1);
+    text("Distance to Scale", text_center, 384, width * 0.75);
+    fill(0, 0, 0, 0);
+    strokeWeight(5);
+    rect(center_x - (max_box_width / 2), 384 - 48, max_box_width, 96);
+    fill(255);
+    strokeWeight(1);
+    text("Credits", text_center, 512, width * 0.75);
+    fill(0, 0, 0, 0);
+    strokeWeight(5);
+    rect(center_x - (max_box_width / 2), 512 - 48, max_box_width, 96);
+    fill(255);
+    strokeWeight(1);
 
+    // Now we check if we need to update the cursor type by comparing the rectangle position to the boxes.
+    const cursor_position = new Coordinate(mouseX, mouseY);
+    if (determine_if_coordinate_within_rectangle(cursor_position, center_x - (max_box_width / 2), 256 - 48, max_box_width, 96))
+    {
+        if (mouseIsPressed && !mouse_is_pressed)
+        {
+            cursor("default");
+            set_view_mode(view_mode, 0);
+        }
+        else
+        {
+            cursor("pointer");
+        }
+        
+    }
+    else if (determine_if_coordinate_within_rectangle(cursor_position, center_x - (max_box_width / 2), 384 - 48, max_box_width, 96))
+    {
+        if (mouseIsPressed && !mouse_is_pressed)
+        {
+            cursor("default");
+            set_view_mode(view_mode, 1);
+        }
+        else
+        {
+            cursor("pointer");
+        }
+    }
+    else if (determine_if_coordinate_within_rectangle(cursor_position, center_x - (max_box_width / 2), 512 - 48, max_box_width, 96))
+    {
+        if (mouseIsPressed && !mouse_is_pressed)
+        {
+            cursor("default");
+            set_view_mode(view_mode, 2);
+        }
+        else
+        {
+            cursor("pointer");
+        }
+        
+    }
+    else
+    {
+        cursor("default");
+    }
+    
 }
 
-function draw_scale_mode(planets)
+function draw_scale_mode(planet_list)
 {
-    
+    cursor("default");
     // First, we iterate through the list of planets, and find the planet with the largest radius. We use this to scale the planets.
     let largest_planet_diameter = null;
     planets.forEach(function(value)
@@ -270,34 +391,52 @@ function draw_scale_mode(planets)
             largest_planet_diameter = value.diameter;
         }
     });
-    let shortest_window_side = Window.get_shortest_window_side();
+    let shortest_window_side = Window.get_shortest_window_side_length();
 
     // We want the largest planet to be 90% of the shortest side of the screen in diameter.
     let largest_planet_screen_diameter = shortest_window_side * 0.9; // This is the largest diameter the largest planet should have.
-
     // We use this to calculate the sun.
     let sun_position = new Coordinate(Window.calculate_center_of_window().x, 0);
     const sun_radius_km = 696340; // This is the radius of the sun in kilometers.
-    const sun_radius_multiplier = sun_radius_km / (largest_planet_diameter / 2); // This is the multiplier used to scale the sun based on the largest planet.
-    const sun_diameter_screen = Math.floor(largest_planet_screen_diameter * (sun_radius_multiplier * 2)); // This is the radius of the sun in pixels.
     
+    const planet_size_multiplier = largest_planet_screen_diameter / largest_planet_diameter; // This is the multiplier we use to scale the planets.
     // Now, we calculate how tall the canvas needs to be to render every planet. We render every planet to scale, with the largest being 90%. We want an additional 10% of screen height between each planet.
     const spacer_height = shortest_window_side * 0.1;
     let total_screen_height_required = 0;
     
-    // First, we account for the half of the sun at the top of the screen that will be visible.
+    const sun_diameter_screen = Math.floor(sun_radius_km * planet_size_multiplier); // This is the radius of the sun in pixels.
     total_screen_height_required += (sun_diameter_screen / 2) + spacer_height;
-
     // Now, we iterate through the planets, and add their diameters to the total screen height required.
     planets.forEach(function(value)
     {
-        total_screen_height_required += value.diameter + spacer_height;
+        total_screen_height_required += (value.diameter * planet_size_multiplier) + spacer_height;
     });
+
+    // Now, we resize the canvas to the required height.
+    Window.resize_window_to_dimensions(windowWidth, Math.floor(total_screen_height_required));
+    background(0);
     
+    // Draw the sun
     colorMode(RGB, 255);
     fill(253, 184, 19);
     stroke(253, 184, 19);
     circle(sun_position.x, sun_position.y, sun_diameter_screen);
+
+    // Now, we iterate through the planets, and draw them to scale.
+    let current_end_y = (sun_diameter_screen / 2) + spacer_height;
+    planets.forEach(function(value)
+    {
+        // We calculate the position of the planet.
+        current_end_y += (value.radius * planet_size_multiplier);
+        let planet_screen_diameter = Math.floor(value.diameter * planet_size_multiplier);
+        let planet_coordinate = new Coordinate(width / 2, current_end_y);
+
+        let color_rgb = value.convert_color_hex_to_rgb();
+        fill(color_rgb.r, color_rgb.g, color_rgb.b);
+        stroke(color_rgb.r, color_rgb.g, color_rgb.b);
+        circle(planet_coordinate.x, planet_coordinate.y, planet_screen_diameter);
+        current_end_y += (value.radius * planet_size_multiplier) + spacer_height;
+    });
 }
 
 function draw_distance_mode()
@@ -305,61 +444,57 @@ function draw_distance_mode()
 
 }
 
-// CLICK DETECTORS //
-
-function determine_if_click_is_within_canvas(coordinate)
+function draw_credits_mode()
 {
-    return determine_if_coordinate_within_rectangle(coordinate, 0, 0, windowWidth, windowHeight);
-}
 
-function determine_if_coordinate_within_rectangle(coordinate, rectangle_start_x, rectangle_start_y, rectangle_width, rectangle_height)
-{
-    const rectangle_end_x = rectangle_start_x + rectangle_width;
-    const rectange_end_y = rectangle_start_y + rectangle_height;
-    if (coordinate.x >= rectangle_start_x && coordinate.x <= rectangle_end_x && coordinate.y >= rectangle_start_y && coordinate.y <= rectange_end_y)
-    {
-        return true;
-    }
-    return false;
 }
 
 // HTML ELEMENT FUNCTIONS //
-function set_view_mode(view_mode) // We do this this way so that we can check if view mode is valid yet.
+function set_view_mode(active_view_mode, new_view_mode) // We do this this way so that we can check if view mode is valid yet.
 {
     if (script_is_loaded)
     {
-        switch (view_mode)
+        switch (new_view_mode)
         {
             case -1:
+                console.log("Switching to uninitialized mode.");
                 view_mode.set_uninitialized_mode();
                 break;
             case 0:
+                console.log("Switching to scale mode.");
                 view_mode.set_scale_mode();
                 break;
             case 1:
+                console.log("Switching to distance mode.");
                 view_mode.set_distance_mode();
+                break;
+            case 2:
+                console.log("Switching to credits mode.");
+                view_mode.set_credits_mode();
                 break;
             default:
                 throw new Error(```Invalid view mode: ${view_mode.toString()}.```);
                 break;
         }
-    
     }
-
+    else
+    {
+        console.log("Script is not loaded yet. Please wait a moment and try again.");
+    }
 }
-
-// GLOBAL VARIABLES //
-
-const planets = PlanetAPI.get_planets(); // This is a map containing all of the planets. The key is the name of the planet, and the value is the planet object.
-var maximum_distance_from_sun = 0; // This keeps track of the furthest distance from the sun. It is updated every frame.
-var km_per_pixel_distance = 0; // This keeps track of how many kilometers should be used per pixel. It is updated every frame. We use this for distance between centers of planets only, otherwise every planet would effectively not exist due to sheer scale.
-var km_per_pixel_radius = 0; // This keeps track of how many kilometers should be used per pixel. It is updated every frame. We use this for radius of planets only, otherwise distances between planets would be nonexistent.
-var view_mode = new ViewMode(); // This keeps track of the current view mode. 0 is size to scale, 1 is distance to scale. -1 is uninitialized/starting up.
 
 // P5 MAIN FUNCTIONS //
 
 function setup() // Called once before draw()
 {
+    if (mouseIsPressed)
+    {
+        mouse_is_pressed = true;
+    }
+    else
+    {
+        mouse_is_pressed = false;
+    }
     colorMode(RGB, 255);
     createCanvas(windowWidth, windowHeight);
 }
@@ -384,6 +519,10 @@ DISTANCE:
 */
 function draw() // Called every frame
 {
+    if (!mouseIsPressed)
+    {
+        mouse_is_pressed = false;
+    }
     background(0);
     switch (view_mode.current_mode)
     {
@@ -391,11 +530,13 @@ function draw() // Called every frame
             draw_startup_mode();
             break;
         case 0:
-            draw_scale_mode();
+            draw_scale_mode(planets);
             break;
-
         case 1:
             draw_distance_mode();
+            break;
+        case 2:
+            draw_credits_mode();
             break;
         default:
             throw new Error(```Invalid view mode: ${view_mode.current_mode.toString()}.```);
@@ -405,15 +546,7 @@ function draw() // Called every frame
 
 function mouseClicked() // Called whenever the mouse is clicked.
 {
-    console.log("Clicked. X: " + mouseX.toString() + ", Y: " + mouseY.toString() + ".");
-    if (determine_if_click_is_within_canvas(new Coordinate(mouseX, mouseY)))
-    {
-        console.log("Clicked within canvas.");
-    }
-    else
-    {
-        console.log("Clicked outside canvas.");
-    }
+    const click_coord = new Coordinate(mouseX, mouseY); // We create this coordinate for processing anywhere we need it.
 }
 
 script_is_loaded = true;
