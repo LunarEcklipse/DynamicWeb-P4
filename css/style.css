@@ -2,3 +2,8 @@ body
 {
     overflow:hidden;
 }
+
+.clickable_div
+{
+    cursor:pointer;
+}

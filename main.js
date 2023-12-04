@@ -19,9 +19,34 @@ class PlanetAPI
     }
 }
 
-class DisplayMode
+class ViewMode
 {
+    /* Display modes are:
+    -1: Startup
+    0 : Display planet sizes to scale, but not to distance. Make scrollable downwards.
+    1 : Display planet sizes to distance, but not to size. Make scrollable downwards.
 
+    */
+
+    constructor()
+    {
+        this.current_mode = -1;
+    }
+
+    get current_mode()
+    {
+        return this.current_mode;
+    }
+
+    set_scale_mode()
+    {
+        this.current_mode = 0;
+    }
+
+    set_distance_mode()
+    {
+        this.current_mode = 1;
+    }
 }
 
 class Coordinate
@@ -51,10 +76,9 @@ class Planet
             const b = parseInt(hex_string.substring(4, 6), 16);
             return {r: r, g: g, b: b};
         }
-
         else
         {
-            console.log(```Invalid color hex string (${this.color.toString()}). Using default color (white).```);
+            console.error(```Invalid color hex string (${this.color.toString()}). Using default color (white).```);
             return {r: 255, g: 255, b: 255};
         }
     }
@@ -142,9 +166,14 @@ class Planet
 
 class Window
 {
-    static resize_window()
+    static resize_window_to_screen()
     {
         resizeCanvas(windowWidth, windowHeight);
+    }
+
+    static resize_window_to_dimensions(x, y)
+    {
+        resizeCanvas(x, y);
     }
 
     static calculate_center_of_window()
@@ -152,12 +181,12 @@ class Window
         return new Coordinate(windowWidth / 2, windowHeight / 2);
     }
 
-    static get_shortest_window_side()
+    static get_shortest_window_side_length()
     {
         return min(windowWidth, windowHeight);
     }
 
-    static get_longest_window_side()
+    static get_longest_window_side_length()
     {
         return max(windowWidth, windowHeight);
     }
@@ -179,7 +208,7 @@ function get_maximum_distance_from_sun(planet_list) // This calculates the plane
 
 function get_effective_radius_of_sun() // The sun should take up 8% of the total screen space (4% on each side of center). This converts that number to pixels and returns it because other planets can scale based on this information. No planet should be smaller than 2% of the screen size.
 {
-    return Math.floor(Window.get_shortest_window_side() * 0.04);
+    return Math.floor(Window.get_shortest_window_side_length() * 0.04);
 }
 
 function get_km_per_pixel_radius(planets) // Sets a scale to render planets against. We can't render to scale because otherwise planets would literally just not exist at the scale of screens.
@@ -213,7 +242,7 @@ function get_km_per_pixel_distance(maximum_distance_from_sun) // This function c
     return maximum_distance_from_sun / (Window.get_shortest_window_side() * 0.45);
 }
 
-// DRAWING FUNCTIONS //
+// DRAWING HELPER FUNCTIONS //
 
 function draw_sun()
 {    
@@ -231,14 +260,31 @@ function draw_sun()
     circle(center_of_window.x, center_of_window.y, effective_sun_radius * 2);
 }
 
+// MAIN DRAWING FUNCTIONS //
+
+function draw_startup_mode()
+{
+
+}
+
+function draw_scale_mode()
+{
+
+}
+
+function draw_distance_mode()
+{
+
+}
+
 // GLOBAL VARIABLES //
 
 const planets = PlanetAPI.get_planets(); // This is a map containing all of the planets. The key is the name of the planet, and the value is the planet object.
 var maximum_distance_from_sun = 0; // This keeps track of the furthest distance from the sun. It is updated every frame.
 var km_per_pixel_distance = 0; // This keeps track of how many kilometers should be used per pixel. It is updated every frame. We use this for distance between centers of planets only, otherwise every planet would effectively not exist due to sheer scale.
 var km_per_pixel_radius = 0; // This keeps track of how many kilometers should be used per pixel. It is updated every frame. We use this for radius of planets only, otherwise distances between planets would be nonexistent.
-var frame_count = BigInt(0); // We keep this as a BigInt because it will eventually overflow a normal integer if left long enough.
-var speed_scale = 10 // How many days per second (60 frames).
+var view_mode = new ViewMode(); // This keeps track of the current view mode. 0 is size to scale, 1 is distance to scale. -1 is uninitialized/starting up.
+
 // P5 MAIN FUNCTIONS //
 
 function setup() // Called once before draw()
@@ -247,16 +293,42 @@ function setup() // Called once before draw()
     createCanvas(windowWidth, windowHeight);
 }
 
+/*
+STEPS
+
+Get user input on if they want to see the planets to scale or to distance
+
+SCALE:
+1. Find biggest planet
+2. Set render scale to be 90% of shortest side of screen
+3. Render every planet to scale based on that scale
+
+Sun is going to be bigger so we set the sun to the normal render scale and render it at y=0
+
+DISTANCE:
+1. Find furthest planet
+2. Set distance of that planet to be equal to y = 3 * screen length, set planets to scale based on that. Planets won't be to scale though because of size or else they'd be invisible
+3. Render every planet based on that distance scale
+
+*/
 function draw() // Called every frame
 {
-    // First, we update the globals to account for any resizing of the window.
-    Window.resize_window(); // We use this to reassert the size of the window every frame.
-    maximum_distance_from_sun = get_maximum_distance_from_sun(planets);
-    km_per_pixel_distance = get_km_per_pixel_distance(maximum_distance_from_sun);
-    km_per_pixel_radius = get_km_per_pixel_radius(planets);
-    
     background(0);
-    draw_sun();
+    switch (view_mode.current_mode)
+    {
+        case -1:
+            draw_startup_mode();
+            break;
 
-    frame_count += 1;
+        case 0:
+            draw_scale_mode();
+            break;
+
+        case 1:
+            draw_distance_mode();
+            break;
+        default:
+            throw new Error(```Invalid view mode: ${view_mode.current_mode.toString()}.```);
+            break;
+    }
 }
