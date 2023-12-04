@@ -184,6 +184,13 @@ class Window
     }
 }
 
+// STRING FORMATTING FUNCTIONS //
+
+function prettify_number(in_num)
+{
+    return in_num.toLocaleString();
+}
+
 // GLOBAL VARIABLES //
 
 const planets = PlanetAPI.get_planets(); // This is a map containing all of the planets. The key is the name of the planet, and the value is the planet object.
@@ -351,10 +358,17 @@ function draw_scale_mode(planet_list)
         stroke(255);
         fill(255);
         textSize(32);
-        text(`Radius: ${clicked_planet.radius} km`, text_center, 320, width * 0.75);
-        text(`Distance from Sun: ${clicked_planet.distance_from_sun} million km`, text_center, 384, width * 0.75);
-        text(`Rotation Period: ${clicked_planet.rotation_period} days`, text_center, 448, width * 0.75);
-        text(`Orbital Period: ${clicked_planet.orbital_period} days`, text_center, 512, width * 0.75);
+        text(`Radius: ${prettify_number(clicked_planet.radius)} km`, text_center, 320, width * 0.75);
+        text(`Distance from Sun: ${prettify_number(clicked_planet.distance_from_sun)} km`, text_center, 384, width * 0.75);
+        if (clicked_planet.rotation_period === 1)
+        {
+            text(`Rotation Period: ${prettify_number(clicked_planet.rotation_period)} day`, text_center, 448, width * 0.75);
+        }
+        else
+        {
+            text(`Rotation Period: ${prettify_number(clicked_planet.rotation_period)} days`, text_center, 448, width * 0.75);
+        }
+        text(`Orbital Period: ${prettify_number(clicked_planet.orbital_period)} days`, text_center, 512, width * 0.75);
         const back_width = textWidth("Go Back") + 32;
         text("Go Back", text_center, 576 + 64, width * 0.75);
         fill(0, 0, 0, 0);
@@ -376,7 +390,6 @@ function draw_scale_mode(planet_list)
             {
                 cursor("pointer");
             }
-            
         }
     }   
     else
@@ -476,7 +489,6 @@ function draw_scale_mode(planet_list)
         {
             window.scrollTo(0, sun_diameter_screen / 2);
             set_scroll_past_sun = false;
-        
         }
     }
     
@@ -484,7 +496,151 @@ function draw_scale_mode(planet_list)
 
 function draw_distance_mode()
 {
+    cursor("default");
+    if (clicked_planet !== null)
+    {
+        let window_height = windowHeight;
+        if (windowHeight < 688) // We do this to prevent problems with wrapping on super narrow screens.
+        {
+            window_height = 688;
+        }
+        if (windowWidth < 688) // We do this to prevent problems with wrapping on super narrow screens.
+        {
+            Window.resize_window_to_dimensions(688, window_height);
+        }
+        else
+        {
+            Window.resize_window_to_dimensions(windowWidth, window_height);
+        }
+        
+        background(0);
+        const center_x = Window.calculate_center_of_window_x();
+        fill(255);
+        stroke(255);
+        strokeWeight(1);
+        textSize(64);
+        textAlign(CENTER, CENTER);
+        textWrap(WORD);
+        const text_center = width / 8; // Somehow width / 8 is the center of the screen. I don't know why, but it is. We calculate this here so we don't have to redo this on every line.
+        text(clicked_planet.name, text_center, 64, width * 0.75);
+        colorMode(RGB, 255);
+        let planet_color = clicked_planet.convert_color_hex_to_rgb();
+        fill(planet_color.r, planet_color.g, planet_color.b);
+        stroke(planet_color.r, planet_color.g, planet_color.b);
+        circle(width / 2, 192, 128);
+        stroke(255);
+        fill(255);
+        textSize(32);
+        text(`Radius: ${prettify_number(clicked_planet.radius)} km`, text_center, 320, width * 0.75);
+        text(`Distance from Sun: ${prettify_number(clicked_planet.distance_from_sun)} km`, text_center, 384, width * 0.75);
+        if (clicked_planet.rotation_period === 1)
+        {
+            text(`Rotation Period: ${prettify_number(clicked_planet.rotation_period)} day`, text_center, 448, width * 0.75);
+        }
+        else
+        {
+            text(`Rotation Period: ${prettify_number(clicked_planet.rotation_period)} days`, text_center, 448, width * 0.75);
+        }
+        text(`Orbital Period: ${prettify_number(clicked_planet.orbital_period)} days`, text_center, 512, width * 0.75);
+        const back_width = textWidth("Go Back") + 32;
+        text("Go Back", text_center, 576 + 64, width * 0.75);
+        fill(0, 0, 0, 0);
+        strokeWeight(5);
+        rect(center_x - (back_width / 2), 576 + 64 - 32, back_width, 64);
+        fill(255);
+        strokeWeight(1);
+        const cursor_position = new Coordinate(mouseX, mouseY);
 
+        if (determine_if_coordinate_within_rectangle(cursor_position, center_x - (back_width / 2), 576 + 64 - 32, back_width, 64))
+        {
+            if (mouseIsPressed && !mouse_is_pressed)
+            {
+                cursor("default");
+                clicked_planet = null;
+                set_scroll_past_sun = true;
+            }
+            else
+            {
+                cursor("pointer");
+            }
+        }
+    }
+    else
+    {
+        // The closest planet and the furthest planet should be within maximum 4 screens away from one another. Every planet should be 20% of the screen's shortest side in diameter.
+        // First, we calculate the length of the screen, beginning with the sun. The sun should have a diameter equal to 90% of the width of the top.
+        const sun_diameter = windowWidth * 0.9;
+        const planet_diameter = Window.get_shortest_window_side_length() * 0.05;
+        const spacer_height = Window.get_shortest_window_side_length() * 0.1;
+
+        // Get the last element in the planets map
+        let furthest_planet_distance = null;
+        planets.forEach(function(value)
+        {
+            furthest_planet_distance = value.distance_from_sun;
+        }
+        );
+
+        const total_distance_screen = (windowHeight * 16) * 0.9; // This is the distance we want to follow the sun.
+        Window.resize_window_to_dimensions(windowWidth, (total_distance_screen + sun_diameter / 2) + (windowHeight * 0.1));
+        background(0);
+        const distance_multiplier = total_distance_screen / furthest_planet_distance; // This is the multiplier we use to scale the distances between planets.
+        const start_y = sun_diameter / 2; // We start counting up from here so that planets don't overlap the sun.
+        
+        if (set_scroll_past_sun)
+        {
+            window.scrollTo(0, sun_diameter / 2);
+            set_scroll_past_sun = false;
+        }
+
+        colorMode(RGB, 255);
+        fill(253, 184, 19);
+        stroke(253, 184, 19);
+        circle(width/2, 0, sun_diameter);
+
+        let is_mouse_hovering = false;
+        let mouse_clicked_planet = null;
+        planets.forEach(function(value)
+        {
+            // We calculate the position of the planet.
+            let planet_y = start_y + (value.distance_from_sun * distance_multiplier);
+            let planet_coordinate = new Coordinate(width / 2, planet_y);
+            const color = value.convert_color_hex_to_rgb();
+            fill(color.r, color.g, color.b);
+            stroke(color.r, color.g, color.b);
+            circle(planet_coordinate.x, planet_coordinate.y, planet_diameter);
+            if (determine_if_coordinate_within_circle(new Coordinate(mouseX, mouseY), planet_coordinate.x, planet_coordinate.y, planet_diameter / 2))
+            {
+                is_mouse_hovering = true;
+                if (mouseIsPressed && !mouse_is_pressed)
+                {
+                    mouse_is_pressed = true;
+                    mouse_clicked_planet = value;
+                }
+            }
+        });
+        if (is_mouse_hovering)
+        {
+            if (mouse_clicked_planet !== null )
+            {
+                cursor("default");
+                clicked_planet = mouse_clicked_planet;
+            }
+            else if (!mouse_is_pressed)
+            {
+                cursor("pointer");
+            }
+            else
+            {
+                cursor("default");
+            }
+            
+        }
+        else
+        {
+            cursor("default");
+        }   
+    }
 }
 
 function draw_credits_mode()
