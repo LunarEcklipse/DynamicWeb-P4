@@ -1,3 +1,5 @@
+var script_is_loaded = false;
+
 // Using p5.js
 
 // CLASSES //
@@ -30,12 +32,12 @@ class ViewMode
 
     constructor()
     {
-        this.current_mode = -1;
+        this.set_uninitialized_mode();
     }
 
-    get current_mode()
+    set_uninitialized_mode()
     {
-        return this.current_mode;
+        this.current_mode = -1;
     }
 
     set_scale_mode()
@@ -99,24 +101,9 @@ class Planet
             console.log(```Invalid color hex string (${color.toString()}). Using default color (white).```);
             this.color = "#FFFFFF";
         }
-        this.current_rotation = 0; // Tracks the individual rotation of the planet.
-        this.degrees_around_sun = 0; // Tracks the number of degrees around the sun the planet is, clockwise. 0 is top, 90 is right, 180 is bottom, 270 is left.
-        
-        this.starting_rotation = set_random_rotation(); // These determine random starting positions.
-        this.starting_position = set_random_position_around_sun();
+        this.coordinates = new Coordinate(0, 0);
     }
 
-    // RANDOM START POSITION SETTERS //
-
-    set_random_rotation()
-    {
-        this.current_rotation = Math.floor(Math.random() * 360);
-    }
-
-    set_random_position_around_sun()
-    {
-        this.degrees_around_sun = Math.floor(Math.random() * 360);
-    }
 
     // GETTERS //
 
@@ -125,40 +112,32 @@ class Planet
         return this.radius * 2;
     }
 
-    get_current_coordinates(frame_count, scale) // Returns a Coordinate object.
-    {
-        
-    }
-
     // DRAWING FUNCTIONS + HELPERS //
-    calculate_planet_position(frame_count, scale) // Calculates the position of the planet around the sun at this given moment. This is calculated per planet per frame.
+    calculate_planet_position(view_mode)
     {
-        // Calculate how many degrees to rotate per frame, and then the current rotation of this planet.
-        let degrees_per_day = 360 / this.rotation_period;
-        let degrees_per_second = degrees_per_day * scale; // Scale represents how many days per IRL second to simulate.
-        let degrees_per_frame = degrees_per_second / 60; // 60 frames per second.
-        let degrees_to_rotate = degrees_per_frame * frame_count;
-        if (degrees_to_rotate >= 360)
+        switch(view_mode.current_mode)
         {
-            degrees_to_rotate = degrees_to_rotate % 360;
+            case -1: // Uninitialized mode. We do not draw the planet.
+                break;
+            case 0: // Scale mode. We draw the planet to scale, but not to distance.
+                break;
+            case 1: // Distance mode. We draw the planet to distance, but not to scale.
+                break;
+            default: // This should never happen. If it does, then throw an error.
+                throw new Error(```Invalid view mode: ${view_mode.toString()}.```);
+                break;
         }
-        this.current_rotation = this.starting_rotation + degrees_to_rotate;
-
-        // Calculate how far around the sun this planet is. Imagine the planet is riding a circular track around the sun.
-        degrees_per_day = 360 / this.orbital_period;
-        degrees_per_second = degrees_per_day * scale; // Scale represents how many days per IRL second to simulate.
-        degrees_per_frame = degrees_per_second / 60; // 60 frames per second.
-        degrees_to_rotate = degrees_per_frame * frame_count;
-        if (degrees_to_rotate >= 360)
-        {
-            degrees_to_rotate = degrees_to_rotate % 360;
-        }
-        this.degrees_around_sun = this.starting_position + degrees_to_rotate;
     }
 
-    draw_planet()
+    calculate_planet_screen_size(km_per_pixel)
     {
-
+        let minimum_pixel_size = 2; // We don't want planets to be smaller than 2 pixels.
+        let planet_size = Math.floor(this.diameter / km_per_pixel);
+        if (planet_size < minimum_pixel_size)
+        {
+            planet_size = minimum_pixel_size;
+        }
+        return planet_size;
     }
 }
 
@@ -179,6 +158,16 @@ class Window
     static calculate_center_of_window()
     {
         return new Coordinate(windowWidth / 2, windowHeight / 2);
+    }
+
+    static calculate_center_of_window_x()
+    {
+        return windowWidth / 2;
+    }
+
+    static calculate_center_of_window_y()
+    {
+        return windowHeight / 2;
     }
 
     static get_shortest_window_side_length()
@@ -248,7 +237,7 @@ function draw_sun()
 {    
     // The radius of the sun is 696,340 km.
     // Figure out the scaling of the sun.
-    const sun_radius = 696340;
+    
     const effective_sun_radius = get_effective_radius_of_sun();
     let center_of_window = Window.calculate_center_of_window();
     let shortest_side = Window.get_shortest_window_side();
@@ -264,16 +253,98 @@ function draw_sun()
 
 function draw_startup_mode()
 {
+    Window.resize_window_to_screen();
+    background(0);
 
 }
 
-function draw_scale_mode()
+function draw_scale_mode(planets)
 {
+    
+    // First, we iterate through the list of planets, and find the planet with the largest radius. We use this to scale the planets.
+    let largest_planet_diameter = null;
+    planets.forEach(function(value)
+    {
+        if (largest_planet_diameter === null || value.diameter > largest_planet_diameter)
+        {
+            largest_planet_diameter = value.diameter;
+        }
+    });
+    let shortest_window_side = Window.get_shortest_window_side();
 
+    // We want the largest planet to be 90% of the shortest side of the screen in diameter.
+    let largest_planet_screen_diameter = shortest_window_side * 0.9; // This is the largest diameter the largest planet should have.
+
+    // We use this to calculate the sun.
+    let sun_position = new Coordinate(Window.calculate_center_of_window().x, 0);
+    const sun_radius_km = 696340; // This is the radius of the sun in kilometers.
+    const sun_radius_multiplier = sun_radius_km / (largest_planet_diameter / 2); // This is the multiplier used to scale the sun based on the largest planet.
+    const sun_diameter_screen = Math.floor(largest_planet_screen_diameter * (sun_radius_multiplier * 2)); // This is the radius of the sun in pixels.
+    
+    // Now, we calculate how tall the canvas needs to be to render every planet. We render every planet to scale, with the largest being 90%. We want an additional 10% of screen height between each planet.
+    const spacer_height = shortest_window_side * 0.1;
+    let total_screen_height_required = 0;
+    
+    // First, we account for the half of the sun at the top of the screen that will be visible.
+    total_screen_height_required += (sun_diameter_screen / 2) + spacer_height;
+
+    // Now, we iterate through the planets, and add their diameters to the total screen height required.
+    planets.forEach(function(value)
+    {
+        total_screen_height_required += value.diameter + spacer_height;
+    });
+    
+    colorMode(RGB, 255);
+    fill(253, 184, 19);
+    stroke(253, 184, 19);
+    circle(sun_position.x, sun_position.y, sun_diameter_screen);
 }
 
 function draw_distance_mode()
 {
+
+}
+
+// CLICK DETECTORS //
+
+function determine_if_click_is_within_canvas(coordinate)
+{
+    return determine_if_coordinate_within_rectangle(coordinate, 0, 0, windowWidth, windowHeight);
+}
+
+function determine_if_coordinate_within_rectangle(coordinate, rectangle_start_x, rectangle_start_y, rectangle_width, rectangle_height)
+{
+    const rectangle_end_x = rectangle_start_x + rectangle_width;
+    const rectange_end_y = rectangle_start_y + rectangle_height;
+    if (coordinate.x >= rectangle_start_x && coordinate.x <= rectangle_end_x && coordinate.y >= rectangle_start_y && coordinate.y <= rectange_end_y)
+    {
+        return true;
+    }
+    return false;
+}
+
+// HTML ELEMENT FUNCTIONS //
+function set_view_mode(view_mode) // We do this this way so that we can check if view mode is valid yet.
+{
+    if (script_is_loaded)
+    {
+        switch (view_mode)
+        {
+            case -1:
+                view_mode.set_uninitialized_mode();
+                break;
+            case 0:
+                view_mode.set_scale_mode();
+                break;
+            case 1:
+                view_mode.set_distance_mode();
+                break;
+            default:
+                throw new Error(```Invalid view mode: ${view_mode.toString()}.```);
+                break;
+        }
+    
+    }
 
 }
 
@@ -319,7 +390,6 @@ function draw() // Called every frame
         case -1:
             draw_startup_mode();
             break;
-
         case 0:
             draw_scale_mode();
             break;
@@ -332,3 +402,18 @@ function draw() // Called every frame
             break;
     }
 }
+
+function mouseClicked() // Called whenever the mouse is clicked.
+{
+    console.log("Clicked. X: " + mouseX.toString() + ", Y: " + mouseY.toString() + ".");
+    if (determine_if_click_is_within_canvas(new Coordinate(mouseX, mouseY)))
+    {
+        console.log("Clicked within canvas.");
+    }
+    else
+    {
+        console.log("Clicked outside canvas.");
+    }
+}
+
+script_is_loaded = true;
